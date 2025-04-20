@@ -78,14 +78,15 @@ class NotificationListener : NotificationListenerService() {
         }
 
         // 제목과 내용이 없으면 기본 문구로 대체
-        val finalTitle = if (title.isBlank()) "(제목 없음)" else title
-        val finalText = if (text.isBlank()) "(내용 없음)" else text
+        val finalTitle = if (title.isBlank()) "-" else title
+        val finalText = if (text.isBlank()) "-" else text
 
         // 디스코드로 보낼 메시지 형태
         val message = """
-            앱) $appLabel
-            제목) $finalTitle
-            내용) $finalText
+            ========================================
+            [$appLabel]
+             **$finalTitle**
+              $finalText
         """.trimIndent()
 
         Log.d("🛡️Trust/Notify", "📦 감지됨: $message")
@@ -109,13 +110,13 @@ class NotificationListener : NotificationListenerService() {
     // 서비스가 처음 연결될 때 실행됨
     override fun onListenerConnected() {
         super.onListenerConnected()
-        sendToDiscord("---------------------------- Trust 시작됨 ----------------------------\n")
+        sendToDiscord("============== Trust 시작됨 ==============\n")
     }
 
     // 서비스가 끊겼을 때 실행됨
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
-        sendToDiscord("Trust 중단됨\n")
+        sendToDiscord("============== Trust 중단됨 ==============\n")
     }
 
     // 디스코드 웹훅으로 메시지를 보내는 함수
