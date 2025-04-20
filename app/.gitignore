@@ -1,0 +1,4 @@
+/build
+*.jks
+Secrets.kt
+/app/release/*.apk
