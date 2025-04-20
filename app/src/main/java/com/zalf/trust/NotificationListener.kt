@@ -34,7 +34,8 @@ class NotificationListener : NotificationListenerService() {
     // 앱 이름이 제대로 표시되지 않는 경우, 사람이 읽기 좋게 매핑해주는 테이블
     private val appNameOverrides = mapOf(
         "com.google.android.gm" to "Gmail",
-        "com.kakao.talk" to "카카오톡"
+        "com.kakao.talk" to "카카오톡",
+        "com.google.android.youtube" to "YouTube"
     )
 
     // 새로운 알림이 도착하면 자동으로 실행되는 함수
