@@ -1,33 +1,43 @@
-# Gradle files
+# ✅ Gradle build output
 .gradle/
 build/
+**/build/
 
-# Local configuration file (sdk path, etc)
+# ✅ Local settings
 local.properties
 
-# Log/OS Files
+# ✅ Log and temporary files
 *.log
+*.hprof
 
-# Android Studio generated files and folders
+# ✅ Android Studio generated folders
 captures/
 .externalNativeBuild/
 .cxx/
-*.apk
 output.json
 
-# IntelliJ
+# ✅ APKs
+*.apk
+*.ap_  # sometimes used in older builds
+
+# ✅ IntelliJ IDEA / Android Studio project files
 *.iml
 .idea/
 misc.xml
 deploymentTargetDropDown.xml
 render.experimental.xml
 
-# Keystore files
+# ✅ Signing keys (매우 중요)
 *.jks
 *.keystore
 
-# Google Services (e.g. APIs or Firebase)
+# ✅ Google Services & Firebase
 google-services.json
+firebase.json
 
-# Android Profiling
-*.hprof
+# ✅ Trust 프로젝트 특화
+# Secrets
+app/src/main/java/com/zalf/trust/Secrets.kt
+
+# Release APKs (예: GitHub 릴리즈 시 제외)
+app/release/*.apk
