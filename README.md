@@ -9,7 +9,7 @@
 - 간단한 설정만으로 사용 가능
 
 ## 사용 방법
-1. [Releases](https://github.com/사용자명/레포명/releases) 페이지에서 최신 APK 다운로드
+1. [Releases](https://github.com/ZALF0615/trust-bot/releases) 페이지에서 최신 APK 다운로드
 2. Android에 설치 후 알림 접근 권한 부여
 3. `Secrets.kt` 파일에 본인의 Webhook 주소 입력 후 빌드하거나, 공개된 릴리즈 버전 사용
 
