@@ -60,8 +60,14 @@ class NotificationListener : NotificationListenerService() {
 
         // 앱 이름 가져오기 (문제가 생기면 수동 테이블에서 대체)
         val appLabel = try {
-            val info = packageManager.getApplicationInfo(packageName, PackageManager.GET_META_DATA)
-            packageManager.getApplicationLabel(info).toString()
+            val info = packageManager.getApplicationInfo(packageName, 0)
+            val label = packageManager.getApplicationLabel(info)?.toString()
+            if (!label.isNullOrBlank()) {
+                label
+            } else {
+                Log.w("🛡️Trust/Label", "⚠️ 앱 이름이 비어 있어 packageName 사용: $packageName")
+                packageName
+            }
         } catch (e: Exception) {
             val fallback = appNameOverrides[packageName]
             if (fallback != null) {
