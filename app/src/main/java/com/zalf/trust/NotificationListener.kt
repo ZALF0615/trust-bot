@@ -35,7 +35,9 @@ class NotificationListener : NotificationListenerService() {
     private val appNameOverrides = mapOf(
         "com.google.android.gm" to "Gmail",
         "com.kakao.talk" to "카카오톡",
-        "com.google.android.youtube" to "YouTube"
+        "com.google.android.youtube" to "YouTube",
+        "com.discord" to "Discord",
+        "viva.republica.toss" to "Toss"
     )
 
     // 새로운 알림이 도착하면 자동으로 실행되는 함수
