@@ -17,6 +17,11 @@ import com.google.gson.annotations.SerializedName
 
 import java.io.IOException
 
+// 시간 포맷을 위한 도구
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
 class NotificationListener : NotificationListenerService() {
 
     // Webhook 주소는 외부 파일(Secrets.kt)에 숨겨서 관리함
@@ -89,10 +94,14 @@ class NotificationListener : NotificationListenerService() {
         val finalTitle = if (title.isBlank()) "-" else title
         val finalText = if (text.isBlank()) "-" else text
 
-        // 디스코드로 보낼 메시지 형태
+        // 알림 발생 시각을 'HH:mm' 포맷으로 변환 (예: 18:42)
+        val timestamp = SimpleDateFormat("HH:mm", Locale.getDefault())
+            .format(Date(sbn.postTime))
+
+        // 디스코드로 보낼 메시지 형태 (앱 이름 옆에 알림 시간 포함)
         val message = """
             ========================================
-            [$appLabel]
+            [$appLabel] $timestamp
              **$finalTitle**
               $finalText
         """.trimIndent()
