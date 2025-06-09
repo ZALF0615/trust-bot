@@ -125,15 +125,56 @@ class NotificationListener : NotificationListenerService() {
     }
 
     // 서비스가 처음 연결될 때 실행됨
+    private var hasNotifiedStart = false
+
     override fun onListenerConnected() {
         super.onListenerConnected()
-        sendToDiscord("============== Trust 시작됨 ==============\n")
+
+        if (!hasNotifiedStart) {
+            hasNotifiedStart = true
+            val timestamp = getCurrentTimestamp()
+
+            // 🔻 마지막 종료 시각 가져오기
+            val prefs = getSharedPreferences("trustbot", MODE_PRIVATE)
+            val lastStopped = prefs.getLong("last_stopped_time", -1)
+            val now = System.currentTimeMillis()
+
+            val gapMessage = if (lastStopped > 0) {
+                val gapMillis = now - lastStopped
+                val minutes = gapMillis / 60_000
+                val seconds = (gapMillis % 60_000) / 1000
+                "💤 비활성 기간: ${minutes}분 ${seconds}초"
+            } else null
+
+            val mainMessage = "@everyone ✅ TrustBot 시작됨 ($timestamp)"
+
+            Log.d("🛡️Trust/Start", "NotificationListener 연결됨")
+
+            // 🔻 전송
+            sendToDiscord(mainMessage)
+            gapMessage?.let { sendToDiscord(it) }
+        } else {
+            Log.d("🛡️Trust/Start", "이미 시작 메시지를 전송했으므로 생략")
+        }
     }
 
-    // 서비스가 끊겼을 때 실행됨
-    override fun onListenerDisconnected() {
-        super.onListenerDisconnected()
-        sendToDiscord("============== Trust 중단됨 ==============\n")
+
+    // 서비스가 종료될 때 실행됨
+    private var hasNotifiedStop = false
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (!hasNotifiedStop) {
+            hasNotifiedStop = true
+            val timestamp = getCurrentTimestamp()
+            val message = "@everyone 🛑 TrustBot 종료됨 ($timestamp)"
+            Log.w("🛡️Trust/Destroy", message)
+            sendToDiscord(message)
+
+            // 🔻 종료 시각 저장 (밀리초 단위)
+            val prefs = getSharedPreferences("trustbot", MODE_PRIVATE)
+            prefs.edit().putLong("last_stopped_time", System.currentTimeMillis()).apply()
+        }
     }
 
     // 디스코드 웹훅으로 메시지를 보내는 함수
