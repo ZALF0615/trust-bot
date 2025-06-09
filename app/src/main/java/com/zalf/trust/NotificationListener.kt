@@ -198,10 +198,20 @@ class NotificationListener : NotificationListenerService() {
             .post(body)
             .build()
 
-        // 비동기 요청으로 디스코드에 메시지 전송
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 Log.e("🛡️Trust/Error", "디스코드 전송 실패: ${e.message}")
+
+                if (retryCount < 2) {
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        sendToDiscord(message, retryCount + 1)
+                    }, 10_000)
+                } else {
+                    // 최종 실패 시 저장
+                    val prefs = getSharedPreferences("trustbot", MODE_PRIVATE)
+                    prefs.edit().putString("pending_message", message).apply()
+                    Log.w("🛡️Trust/Error", "📦 전송 실패 메시지 저장됨")
+                }
             }
 
             override fun onResponse(call: Call, response: Response) {
