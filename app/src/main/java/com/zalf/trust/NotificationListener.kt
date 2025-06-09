@@ -6,6 +6,8 @@ import android.content.pm.PackageManager
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import android.os.Handler
+import android.os.Looper
 
 // 디스코드로 메시지를 보내기 위해 필요한 HTTP 통신 라이브러리
 import okhttp3.*
@@ -21,6 +23,14 @@ import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 
 class NotificationListener : NotificationListenerService() {
 
@@ -44,6 +54,9 @@ class NotificationListener : NotificationListenerService() {
         "com.discord" to "Discord",
         "viva.republica.toss" to "Toss"
     )
+
+    // 마지막 실패 시각을 기록하는 변수
+    private var lastFailedTime: Long? = null
 
     // 새로운 알림이 도착하면 자동으로 실행되는 함수
     override fun onNotificationPosted(sbn: StatusBarNotification) {
@@ -110,7 +123,7 @@ class NotificationListener : NotificationListenerService() {
 
         // 알림에 포함된 전체 정보 키-값을 출력 (디버깅용)
         for (key in extras.keySet()) {
-            Log.d("🛡️Trust/Extras", "🔍 $key = ${extras.get(key)}")
+            // Log.d("🛡️Trust/Extras", "🔍 $key = ${extras.get(key)}")
         }
 
         // 이전과 같은 메시지면 전송하지 않음 (중복 방지)
@@ -177,19 +190,13 @@ class NotificationListener : NotificationListenerService() {
         }
     }
 
-    // 디스코드 웹훅으로 메시지를 보내는 함수
-    private fun sendToDiscord(message: String) {
-        Log.d("🛡️Trust/Send", "📤 디스코드 전송 예정 메시지:\n$message")
 
+    // 디스코드 웹훅으로 메시지를 보내는 함수
+    private fun sendToDiscord(message: String, retryCount: Int = 0) {
         val client = OkHttpClient()
         val gson = Gson()
 
-        // 디스코드 웹훅 형식에 맞게 JSON 만들기
-        val payload = DiscordMessage(
-            username = "TrustBot", // 디스코드에 표시될 이름
-            content = message      // 실제 메시지 본문
-        )
-
+        val payload = DiscordMessage(username = "TrustBot", content = message)
         val json = gson.toJson(payload)
         val body = RequestBody.create("application/json".toMediaType(), json)
 
@@ -225,4 +232,79 @@ class NotificationListener : NotificationListenerService() {
         @SerializedName("username") val username: String,
         @SerializedName("content") val content: String
     )
+
+    private fun getCurrentTimestamp(): String {
+        val now = System.currentTimeMillis()
+        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        return sdf.format(Date(now))
+    }
+
+}
+
+class NetworkReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = cm.activeNetwork
+        val capabilities = cm.getNetworkCapabilities(network)
+
+        val isConnected = capabilities != null &&
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+
+        val prefs = context.getSharedPreferences("trustbot", Context.MODE_PRIVATE)
+        val wasConnected = prefs.getBoolean("was_connected", true)
+
+        if (isConnected && !wasConnected) {
+            // 인터넷 복구됨
+            val timestamp = getCurrentTimestamp()
+            val message = "@everyon 🔌 인터넷 복구됨 ($timestamp)"
+            Log.i("🛡️Trust/Network", message)
+            NotificationSender.send(context, message)
+
+            // 실패했던 메시지가 있으면 다시 보냄
+            val pending = prefs.getString("pending_message", null)
+            if (pending != null) {
+                NotificationSender.send(context, pending)
+                prefs.edit().remove("pending_message").apply()
+            }
+        } else if (!isConnected && wasConnected) {
+            // 인터넷 끊김
+            val timestamp = getCurrentTimestamp()
+            val message = "@everyon ❌ 인터넷 끊김 ($timestamp)"
+            Log.w("🛡️Trust/Network", message)
+            NotificationSender.send(context, message)
+        }
+
+        prefs.edit().putBoolean("was_connected", isConnected).apply()
+    }
+
+    private fun getCurrentTimestamp(): String {
+        val now = System.currentTimeMillis()
+        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        return sdf.format(Date(now))
+    }
+}
+
+
+object NotificationSender {
+    fun send(context: Context, message: String) {
+        val client = OkHttpClient()
+        val gson = Gson()
+        val json = gson.toJson(NotificationListener.DiscordMessage("TrustBot", message))
+        val body = RequestBody.create("application/json".toMediaType(), json)
+
+        val request = Request.Builder()
+            .url(Secrets.webhookUrl)
+            .post(body)
+            .build()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.e("🛡️Trust/Recover", "❌ 복구 전송 실패: ${e.message}")
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                Log.d("🛡️Trust/Recover", "✅ 복구 전송 성공: ${response.code}")
+            }
+        })
+    }
 }
