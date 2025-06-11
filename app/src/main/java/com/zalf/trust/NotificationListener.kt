@@ -40,6 +40,10 @@ class NotificationListener : NotificationListenerService() {
     // 최근에 전송한 메시지를 기억해서, 같은 알림이 여러 번 가지 않도록 함
     private var lastMessage: String? = null
 
+    private val recentNotificationKeys = ArrayDeque<String>()
+    private val MAX_RECENT_KEYS = 30
+
+
     // 무시하고 싶은 앱 이름들 (안드로이드 시스템 관련 알림 등)
     private val ignoredAppLabels = listOf(
         "Android 시스템",
@@ -60,8 +64,22 @@ class NotificationListener : NotificationListenerService() {
 
     // 새로운 알림이 도착하면 자동으로 실행되는 함수
     override fun onNotificationPosted(sbn: StatusBarNotification) {
+
         val packageName = sbn.packageName // 예: com.kakao.talk
         val extras = sbn.notification.extras // 알림 속 추가 정보들
+        val key = sbn.key
+
+        // 이미 전송된 알림에 대해 처리하지 않고 넘김
+        if (recentNotificationKeys.contains(key)) {
+            Log.d("🛡️Trust/Skip", "🔁 이미 처리된 알림: $key")
+            return
+        }
+
+        // 큐 업데이트 (항상 큐에 있는 키 개수가 최대값을 넘기지 않게 유지)
+        recentNotificationKeys.addLast(key)
+        if (recentNotificationKeys.size > MAX_RECENT_KEYS) {
+            recentNotificationKeys.removeFirst()
+        }
 
         // 알림 제목과 내용을 가져옴 (비어 있으면 기본값으로 처리)
         val titleRaw = extras.getCharSequence("android.title")?.toString() ?: ""
@@ -125,13 +143,6 @@ class NotificationListener : NotificationListenerService() {
         for (key in extras.keySet()) {
             // Log.d("🛡️Trust/Extras", "🔍 $key = ${extras.get(key)}")
         }
-
-        // 이전과 같은 메시지면 전송하지 않음 (중복 방지)
-        if (message == lastMessage) {
-            Log.d("🛡️Trust/Skip", "🟡 동일한 알림, 전송 생략됨")
-            return
-        }
-        lastMessage = message
 
         // 디스코드로 실제 전송
         sendToDiscord(message)
