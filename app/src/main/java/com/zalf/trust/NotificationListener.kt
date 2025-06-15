@@ -115,12 +115,25 @@ class NotificationListener : NotificationListenerService() {
         val finalTitle = if (title.isBlank()) "-" else title
         val finalText = if (text.isBlank()) "-" else text
 
+        // 알림 발생 시각을 'HH:mm' 포맷으로 변환 (예: 18:42)
+        val timestamp = SimpleDateFormat("HH:mm", Locale.getDefault())
+            .format(Date(sbn.postTime))
+
         // 중복 판별을 위한 핵심 메시지 (타임스탬프 제외)
         val messageKey = "[$appLabel] $finalTitle $finalText"
 
         // 리스트 안에 같은 알림이 있는 경우 처리하지 않고 넘김
         if (recentNotifications.any { it.first == sbn.key && it.second == messageKey }) {
+            val skippedMessage = """
+            ========================================
+            🟡 동일한 알림(key+내용), 전송 생략됨
+            [SKIPPED][$appLabel] $timestamp
+             **$finalTitle**
+              $finalText
+            """.trimIndent()
+
             Log.d("🛡️Trust/Skip", "🟡 동일한 알림(key+내용), 전송 생략됨")
+            sendToDiscord(skippedMessage)
             return
         }
 
@@ -132,9 +145,6 @@ class NotificationListener : NotificationListenerService() {
             recentNotifications.removeFirst()
         }
 
-        // 알림 발생 시각을 'HH:mm' 포맷으로 변환 (예: 18:42)
-        val timestamp = SimpleDateFormat("HH:mm", Locale.getDefault())
-            .format(Date(sbn.postTime))
 
         // 디스코드로 보낼 메시지 형태 (앱 이름 옆에 알림 시간 포함)
         val message = """
