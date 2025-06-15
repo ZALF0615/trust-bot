@@ -252,50 +252,6 @@ class NotificationListener : NotificationListenerService() {
 
 }
 
-class NetworkReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val network = cm.activeNetwork
-        val capabilities = cm.getNetworkCapabilities(network)
-
-        val isConnected = capabilities != null &&
-                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-
-        val prefs = context.getSharedPreferences("trustbot", Context.MODE_PRIVATE)
-        val wasConnected = prefs.getBoolean("was_connected", true)
-
-        if (isConnected && !wasConnected) {
-            // 인터넷 복구됨
-            val timestamp = getCurrentTimestamp()
-            val message = "@everyon 🔌 인터넷 복구됨 ($timestamp)"
-            Log.i("🛡️Trust/Network", message)
-            NotificationSender.send(context, message)
-
-            // 실패했던 메시지가 있으면 다시 보냄
-            val pending = prefs.getString("pending_message", null)
-            if (pending != null) {
-                NotificationSender.send(context, pending)
-                prefs.edit().remove("pending_message").apply()
-            }
-        } else if (!isConnected && wasConnected) {
-            // 인터넷 끊김
-            val timestamp = getCurrentTimestamp()
-            val message = "@everyon ❌ 인터넷 끊김 ($timestamp)"
-            Log.w("🛡️Trust/Network", message)
-            NotificationSender.send(context, message)
-        }
-
-        prefs.edit().putBoolean("was_connected", isConnected).apply()
-    }
-
-    private fun getCurrentTimestamp(): String {
-        val now = System.currentTimeMillis()
-        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-        return sdf.format(Date(now))
-    }
-}
-
-
 object NotificationSender {
     fun send(context: Context, message: String) {
         val client = OkHttpClient()
