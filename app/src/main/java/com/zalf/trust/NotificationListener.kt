@@ -24,6 +24,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import java.util.LinkedList
+
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -39,9 +41,6 @@ class NotificationListener : NotificationListenerService() {
 
     // 최근에 전송한 메시지를 기억해서, 같은 알림이 여러 번 가지 않도록 함
     private var lastMessage: String? = null
-
-    private val recentNotificationKeys = ArrayDeque<String>()
-    private val MAX_RECENT_KEYS = 30
 
 
     // 무시하고 싶은 앱 이름들 (안드로이드 시스템 관련 알림 등)
@@ -62,24 +61,15 @@ class NotificationListener : NotificationListenerService() {
     // 마지막 실패 시각을 기록하는 변수
     private var lastFailedTime: Long? = null
 
+    // 중복 방지를 위한 큐 선언 (key + title + text 조합)
+    private val recentNotifications = LinkedList<Pair<String, String>>()
+    private val MAX_RECENT_KEYS = 50  // 기억할 알림 개수 제한
+
     // 새로운 알림이 도착하면 자동으로 실행되는 함수
     override fun onNotificationPosted(sbn: StatusBarNotification) {
 
         val packageName = sbn.packageName // 예: com.kakao.talk
         val extras = sbn.notification.extras // 알림 속 추가 정보들
-        val key = sbn.key
-
-        // 이미 전송된 알림에 대해 처리하지 않고 넘김
-        if (recentNotificationKeys.contains(key)) {
-            Log.d("🛡️Trust/Skip", "🔁 이미 처리된 알림: $key")
-            return
-        }
-
-        // 큐 업데이트 (항상 큐에 있는 키 개수가 최대값을 넘기지 않게 유지)
-        recentNotificationKeys.addLast(key)
-        if (recentNotificationKeys.size > MAX_RECENT_KEYS) {
-            recentNotificationKeys.removeFirst()
-        }
 
         // 알림 제목과 내용을 가져옴 (비어 있으면 기본값으로 처리)
         val titleRaw = extras.getCharSequence("android.title")?.toString() ?: ""
@@ -124,6 +114,23 @@ class NotificationListener : NotificationListenerService() {
         // 제목과 내용이 없으면 기본 문구로 대체
         val finalTitle = if (title.isBlank()) "-" else title
         val finalText = if (text.isBlank()) "-" else text
+
+        // 중복 판별을 위한 핵심 메시지 (타임스탬프 제외)
+        val messageKey = "[$appLabel] $finalTitle $finalText"
+
+        // 리스트 안에 같은 알림이 있는 경우 처리하지 않고 넘김
+        if (recentNotifications.any { it.first == sbn.key && it.second == messageKey }) {
+            Log.d("🛡️Trust/Skip", "🟡 동일한 알림(key+내용), 전송 생략됨")
+            return
+        }
+
+        // 새 알림 기록
+        recentNotifications.addLast(Pair(sbn.key, messageKey))
+
+        // 알림 목록을 항상 일정 개수로 유지
+        if (recentNotifications.size > MAX_RECENT_KEYS) {
+            recentNotifications.removeFirst()
+        }
 
         // 알림 발생 시각을 'HH:mm' 포맷으로 변환 (예: 18:42)
         val timestamp = SimpleDateFormat("HH:mm", Locale.getDefault())
